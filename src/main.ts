@@ -1,0 +1,27 @@
+import { NestFactory } from '@nestjs/core';
+import { ValidationPipe } from '@nestjs/common';
+import { AppModule } from './app.module';
+import { mkdirSync } from 'fs';
+
+async function bootstrap() {
+  mkdirSync('data', { recursive: true });
+
+  const app = await NestFactory.create(AppModule);
+  app.enableCors({
+    origin: true,
+    credentials: true,
+  });
+  app.setGlobalPrefix('api');
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      transform: true,
+      forbidNonWhitelisted: true,
+    }),
+  );
+
+  const port = process.env.PORT || 8081;
+  await app.listen(port);
+  console.log(`API running on http://localhost:${port}/api`);
+}
+bootstrap();
