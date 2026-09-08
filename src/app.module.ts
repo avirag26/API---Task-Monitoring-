@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ScheduleModule } from '@nestjs/schedule';
 import { AuthModule } from './auth/auth.module';
@@ -19,11 +19,41 @@ import { DailyReport } from './daily-reports/entities/daily-report.entity';
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     ScheduleModule.forRoot(),
-    TypeOrmModule.forRoot({
-      type: 'sqlite',
-      database: 'data/avirag-tasks.sqlite',
-      entities: [User, Project, Task, Member, DailyReport],
-      synchronize: true,
+    TypeOrmModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => {
+        const databaseUrl = config.get<string>('DATABASE_URL');
+        const sslEnabled =
+          config.get<string>('DB_SSL') === 'true' ||
+          config.get<string>('NODE_ENV') === 'production' ||
+          !!databaseUrl?.includes('sslmode=require') ||
+          !!databaseUrl?.includes('neon.tech');
+
+        const entities = [User, Project, Task, Member, DailyReport];
+        const common = {
+          type: 'postgres' as const,
+          entities,
+          synchronize: config.get<string>('DB_SYNC') !== 'false',
+          ssl: sslEnabled ? { rejectUnauthorized: false } : false,
+        };
+
+        if (databaseUrl) {
+          return {
+            ...common,
+            url: databaseUrl,
+          };
+        }
+
+        return {
+          ...common,
+          host: config.get<string>('DB_HOST') || 'localhost',
+          port: Number(config.get<string>('DB_PORT') || 5432),
+          username: config.get<string>('DB_USER') || 'postgres',
+          password: config.get<string>('DB_PASS') || 'postgres',
+          database: config.get<string>('DB_NAME') || 'avirag_tasks',
+        };
+      },
     }),
     AuthModule,
     UsersModule,

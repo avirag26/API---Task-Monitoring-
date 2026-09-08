@@ -1,11 +1,8 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
-import { mkdirSync } from 'fs';
 
 async function bootstrap() {
-  mkdirSync('data', { recursive: true });
-
   const app = await NestFactory.create(AppModule);
   app.enableCors({
     origin: true,
